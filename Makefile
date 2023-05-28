@@ -145,6 +145,7 @@ start-golang-rly:
 	./network/relayer/interchain-acc-config/rly-start.sh
 
 kill-dev:
-	@echo "Killing icad and removing previous data"
+	@echo "Killing icad, kujirad, and removing previous data"
 	-@rm -rf ./data
 	-@killall icad 2>/dev/null
+	-@killall kujirad 2>/dev/null
