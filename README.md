@@ -1,3 +1,52 @@
+# Setup and Testing for the Kujira intertx module.
+`make install` the `kujirad` binary with the `intertx` module.  
+`make install` inside this repository for the `icad` binary, we use this as the host chain.  
+Install `hermes` as the relayer.  
+`make init-hermes` to initialize the chains and the relayer.  
+`make start-hermes` to start the relayer.  
+
+In your terminal setup the env vars:
+```bash
+export KUJI_1=$(kujirad keys show wallet1 -a --keyring-backend test --home ./data/localkujira) && echo $KUJI_1;
+export WALLET_1=$(icad keys show wallet1 -a --keyring-backend test --home ./data/test-1) && echo $WALLET_1;
+```
+
+Then, we can start registering the interchain account:
+```bash
+# Register
+kujirad tx intertx register --connection-id connection-0 --account-id 1 --gas auto --gas-adjustment 1.5 --node tcp://localhost:36657 --from $KUJI_1 --keyring-backend test --yes
+# Get the foreign address
+kujirad q intertx account connection-0 1 kujira1m9l358xunhhwds0568za49mzhvuxx9uxj3kn38 --node tcp://localhost:36657
+export ICA_ADDR="<the address from the previous command>"
+```
+
+Then, we can send a transaction:
+```bash
+# First, fund the interchain account
+icad tx bank send $WALLET_1 $ICA_ADDR 10000stake --chain-id test-1 --home ./data/test-1 --node tcp://localhost:16657 --keyring-backend test -y
+# Ensure that the funds are there
+icad q bank balances $ICA_ADDR --chain-id test-1 --node tcp://localhost:16657
+# Now, we do an ICA MsgDelegate. First check that the validator has no delegations from the interchain account
+icad q staking delegations-to cosmosvaloper18hl5c9xn5dze2g50uaw0l2mr02ew57zk0auktn --home ./data/test-1 --node tcp://localhost:16657
+# Then we send the delegation ICA tx
+kujirad tx intertx submit \
+'{
+    "@type":"/cosmos.staking.v1beta1.MsgDelegate",
+    "delegator_address":"<The ICA_ADDR>",
+    "validator_address":"cosmosvaloper18hl5c9xn5dze2g50uaw0l2mr02ew57zk0auktn",
+    "amount": {
+        "denom": "stake",
+        "amount": "1000"
+    }
+}' --connection-id connection-0 --account-id 1 --ica-timeout 100000000000 --gas auto --gas-adjustment 1.5 --node tcp://localhost:36657 --from $KUJI_1 --home ./data/localkujira --keyring-backend test
+# Check that the delegation was successful
+icad q staking delegations-to cosmosvaloper18hl5c9xn5dze2g50uaw0l2mr02ew57zk0auktn --home ./data/test-1 --node tcp://localhost:16657
+```
+
+Yay!
+
+Original README below:
+
 # Interchain Accounts
 
 Developers integrating Interchain Accounts may choose to firstly enable host chain functionality, and add authentication modules later as desired.
